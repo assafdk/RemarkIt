@@ -26,21 +26,21 @@ register(APPLICATION_ID, REST_API_KEY)
 
 # Get all today's jobs
 jobs = ParseAPI.getJobs()
-
+# vars for loop
 mktoCredentials = mktoAPI.MktoCredentials()
 prevAccountId = None
 for job in jobs:
-	if ((prevAccountId == None) or (job.account_id != prevAccountId)):
+	if ((prevAccountId == None) or (prevAccountId.objectId != job.account_id.objectId)):
 		# Need new token
 		mktoCredentials = ParseAPI.getMktoCredentials(job.account_id)
 		mktoAccessToken = mktoAPI.getToken(mktoCredentials.munchkin, mktoCredentials.clientId, mktoCredentials.clientSecret)
-		leedsJSON = getLeedsJSON(job, mktoCredentials.munchkin, mktoAccessToken)
-	else:
-		leedsJSON = getLeedsJSON(job)
-		accountName = ParseAPI.getAccountName(job);
-		headersRow = ParseAPI.getTargetHeaders(job);
-		cvsFile = csvUtil.json2csv(accountName ,leedsJSON, headersRow)
-		GA_API.sendCsv2Target(cvsFile)
+	prevAccountId = job.account_id
+	leedsJSON = getLeedsJSON(job, mktoCredentials.munchkin, mktoAccessToken)
+
+	accountName = ParseAPI.getAccountName(job);
+	headersRow = ParseAPI.getTargetHeaders(job);
+	cvsFile = csvUtil.json2csv(accountName ,leedsJSON, headersRow)
+	#GA_API.sendCsv2Target(cvsFile)
 
 
 """

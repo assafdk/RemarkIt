@@ -15,6 +15,18 @@ def addRowToCSV(row, csvFileName):
 #exampleData = """[{"requestId": "334f#150ee2f0921", "success": true, "result": [{"annualRevenue": 10000.0, "leadScore": null, "numberOfEmployees": 2000, "industry": null, "priority": null, "firstName": "Mike", "id": 2, "personType": "contact"}, {"annualRevenue": null, "leadScore": null, "numberOfEmployees": null, "industry": null, "priority": null, "firstName": "yanir", "id": 7, "personType": "contact"}, {"annualRevenue": null, "leadScore": null, "numberOfEmployees": null, "industry": "Marketing", "priority": null, "firstName": "Grant", "id": 8, "personType": "contact"}]}]"""
 #jsonData = json.loads(exampleData)
 
+def makeHeadersList(headersRow):
+    headersList = []
+    indx = 0
+    while indx != -1 :
+        indx = headersRow.find(',')
+        if indx == -1 :
+            headersList.append(headersRow[:])
+            break
+        headersList.append(headersRow[:indx])
+        headersRow = headersRow[indx+1:]
+    return headersList
+
 def json2csv(accountName ,dataDict, headersRow):
     print "json2csv"
 
@@ -26,7 +38,8 @@ def json2csv(accountName ,dataDict, headersRow):
     print "success"
     nowTime = time.strftime("%d-%m-%Y_%H.%M.%S", time.gmtime())
     csvFileName = "%s_%s.csv" % (accountName, nowTime)
-    addRowToCSV(headersRow, csvFileName)
+    headersRowList = makeHeadersList(headersRow)
+    addRowToCSV(headersRowList, csvFileName)
     leadsList = dataDict["result"]
     for lead in leadsList:
         CsvRow = []

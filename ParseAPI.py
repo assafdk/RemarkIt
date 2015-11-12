@@ -14,6 +14,8 @@ class queries(Object):
     pass
 class credentials(Object):
     pass
+class accounts(Object):
+    pass
 
 def __init__(self):
     # 1. register to Parse.com DB
@@ -22,6 +24,16 @@ def __init__(self):
 def getJobs():
     local_jobs = jobs.Query.all()
     return local_jobs;
+
+def getAccountName(job):
+    accountId = job.account_id.objectId
+    accountName = accounts.Query.get(objectId=accountId)
+    return accountName.name
+
+def getTargetHeaders(job):
+    targetId = job.target_query_id.objectId
+    queryRow = queries.Query.get(objectId=targetId)
+    return queryRow.query_sql
 
 def getMktoQueryFields(job):
     datasourceQueryId = job.datasource_query_id.objectId
