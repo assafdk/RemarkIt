@@ -2,6 +2,12 @@ __author__ = 'assafdekel'
 
 import csv, json
 import time
+import os
+
+def makeDirIfNotExist(filename):
+    dirName = os.path.dirname(filename)
+    if not os.path.exists(dirName):
+        os.makedirs(dirName)
 
 def addRowToCSV(row, csvFileName):
     file = open(csvFileName, "a")
@@ -36,8 +42,10 @@ def json2csv(accountName ,dataDict, headersRow):
         print "Bad http response from data source"
         exit(1)
     print "success"
-    nowTime = time.strftime("%d-%m-%Y_%H.%M.%S", time.gmtime())
-    csvFileName = "%s_%s.csv" % (accountName, nowTime)
+    nowTime = time.strftime("%d-%b-%Y_%H.%M.%S", time.gmtime())
+    dirName = time.strftime("%Y-%b-%d", time.gmtime())
+    csvFileName = "%s/%s_%s.csv" % (dirName, accountName, nowTime)
+    makeDirIfNotExist(csvFileName)
     headersRowList = makeHeadersList(headersRow)
     addRowToCSV(headersRowList, csvFileName)
     leadsList = dataDict["result"]
