@@ -52,6 +52,10 @@ def getSalesforceCredentials(accountId):
     userCredentials = accounts.Query.get(objectId=accountId)
     return userCredentials.salesforce
 
+def getAdwordsCredentials(accountId):
+    userCredentials = accounts.Query.get(objectId=accountId)
+    return userCredentials.adwords
+
 
 # def getJobs():
 #     local_jobs = jobs.Query.all()
