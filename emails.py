@@ -43,6 +43,8 @@ def getLeadsList(sf):
             SALESFORCE_REFRESH_URL = "https://login.salesforce.com/services/oauth2/token"
             SALESFORCE_CONSUMER_KEY = "3MVG98_Psg5cppyYH7Cios03svOf9hpZtPg.n0yTXRIKlnjy43.MNRgdLDbmBc3T5wK2IoYOaPLNlqBzNouzE"
             SALESFORCE_CONSUMER_SECRET = "2132402812325087889"
+
+            # HTTP request
             url = SALESFORCE_REFRESH_URL
             headers = {
                 'Content-Type': 'application/json',
@@ -117,6 +119,11 @@ sf = Salesforce(instance_url=salesforce_instance_url, session_id=salesforce_acce
 # Get leads list
 leadsList = getLeadsList(sf)
 
+"""
+_________________ Prepare Emails List _________________
+lowercase & hash
+"""
+
 # Convert to emailsList
 emailsList =[]
 #emailsList = leadsList['records'][i]['Email']
@@ -147,3 +154,7 @@ adWordsEmails.main(adwordsClient, emailsList)
 pushAdwordsCredentialsIfChanged(adwords_access_token, new_adwords_access_token, adwords_refresh_token, new_adwords_refresh_token)
 
 print "Success"
+
+"""
+_________________ Facebook _________________
+"""
