@@ -76,6 +76,48 @@ def main(client, emails):
       print ('User list with name "%s" and ID "%d" was added.'
              % (user_list['name'], user_list['id']))
 
+def sendHashedEmails(client, hashed_emails):
+  # Initialize appropriate services.
+  user_list_service = client.GetService('AdwordsUserListService', 'v201509')
+
+  user_list = {
+      'xsi_type': 'CrmBasedUserList',
+      'name': 'Customer relationship management list #%d' % uuid.uuid4(),
+      'description': 'A list of customers that originated from email addresses',
+      # Maximum lifespan is 180 days.
+      'membershipLifeSpan': 180,
+      # This field is required. It links to a service you created that allows
+      # members of this list to remove themselves. It will be shown in the
+      # "Why this Ad?" of an ad and so it needs to be verified. Read more about
+      # "Why this Ad?" here: https://support.google.com/ads/answer/2662850.
+      'optOutLink': 'http://endpoint1.example.com/optout'
+  }
+
+  # Create an operation to add the user list.
+  operations = [{
+      'operator': 'ADD',
+      'operand': user_list
+  }]
+
+  result = user_list_service.mutate(operations)
+  user_list_id = result['value'][0]['id']
+
+  mutate_members_operation = {
+      'operand': {
+          'userListId': user_list_id,
+          'dataType': 'EMAIL_SHA256',
+          'members': hashed_emails
+      },
+      'operator': 'ADD'
+  }
+
+  response = user_list_service.mutateMembers([mutate_members_operation])
+
+  if 'userLists' in response:
+    for user_list in response['userLists']:
+      print ('User list with name "%s" and ID "%d" was added.'
+             % (user_list['name'], user_list['id']))
+
 
 def HashEmails(emails):
   """Hashes the given emails using SHA-256.

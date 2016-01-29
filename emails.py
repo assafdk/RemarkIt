@@ -6,7 +6,7 @@ import ParseAPI as parse
 from simple_salesforce import Salesforce
 import gglAdwordsLogin as adWordsLogin
 import gglPushEmails as adWordsEmails
-
+import fbPushEmails as fbEmails
 
 """
 # OAuth 2.0 credential information. In a real application, you'd probably be
@@ -85,16 +85,24 @@ V Get SF credentials
 V Login to SF
 V Get leads list
 V Convert to emailsList
+V Convert to google AdWords format
+
+--- AdWords ---
 V Login to AdWords
-V  Convert to google AdWords format
-V  Send to google AdWords
+V Send to google AdWords
+--- Facebook ---
+ Login to Facebook
+ Get custom audiences
+ Send to Facebook (to specific custom audience)
+
+
 """
-user_account = "P3AdqdmrrL"
+user_account = "V5BwqwF0Es"
 
 #get instance_url & Access_token from Parse.com
 # session_id='' == Access Token
 """
-_________________ Parse _________________
+___________________ Parse ___________________
 """
 # Register to parse
 parse.register2remoteDB()
@@ -106,7 +114,7 @@ salesforce_access_token = sfCred['access_token']
 salesforce_refresh_token = sfCred['refresh_token']
 
 """
-_________________ Salesforce _________________
+______________________ Salesforce ______________________
 """
 # Login to SF
 sf = Salesforce(instance_url=salesforce_instance_url, session_id=salesforce_access_token)
@@ -130,31 +138,40 @@ emailsList =[]
 for lead in leadsList['records']:
     emailsList.append(lead['Email'])
 
+# Normalize & Hash emails
+hashedEmails = adWordsEmails.HashEmails(emailsList)
 
 """
 _________________ AdWords _________________
 """
 
-# get adWords credentials
-adwordsCred = parse.getAdwordsCredentials(user_account)
-adwords_access_token = adwordsCred['access_token']
-adwords_refresh_token = adwordsCred['refresh_token']
-
-# SHOULD BE SUPPLIED BY YANIR!!!
-CLIENT_CUSTOMER_ID = test_CLIENT_CUSTOMER_ID
-
-# Login to AdWords
-# if can't connect with REFRESH_TOKEN try to connect with ACCESS_TOKEN !! it worked!
-[adwordsClient, new_adwords_access_token, new_adwords_refresh_token] = adWordsLogin.login(CLIENT_ID, CLIENT_SECRET, adwords_refresh_token, DEVELOPER_TOKEN, USER_AGENT, CLIENT_CUSTOMER_ID)
-
-# Upload emails list to adwords
-adWordsEmails.main(adwordsClient, emailsList)
-
-# Push new credentials to Parse
-pushAdwordsCredentialsIfChanged(adwords_access_token, new_adwords_access_token, adwords_refresh_token, new_adwords_refresh_token)
-
-print "Success"
+# # get adWords credentials
+# adwordsCred = parse.getAdwordsCredentials(user_account)
+# adwords_access_token = adwordsCred['access_token']
+# adwords_refresh_token = adwordsCred['refresh_token']
+#
+# # SHOULD BE SUPPLIED BY YANIR!!!
+# CLIENT_CUSTOMER_ID = test_CLIENT_CUSTOMER_ID
+#
+# # Login to AdWords
+# # if can't connect with REFRESH_TOKEN try to connect with ACCESS_TOKEN !! it worked!
+# [adwordsClient, new_adwords_access_token, new_adwords_refresh_token] = adWordsLogin.login(CLIENT_ID, CLIENT_SECRET, adwords_refresh_token, DEVELOPER_TOKEN, USER_AGENT, CLIENT_CUSTOMER_ID)
+#
+# # Upload emails list to adwords
+# adWordsEmails.sendHashedEmails(adwordsClient, hashedEmails)
+#
+# # Push new credentials to Parse
+# pushAdwordsCredentialsIfChanged(adwords_access_token, new_adwords_access_token, adwords_refresh_token, new_adwords_refresh_token)
+#
+# print "Success"
 
 """
 _________________ Facebook _________________
 """
+# get fb credentials
+fbCred = parse.getFacebookCredentials(user_account)
+fb_access_token = fbCred['user_token']['accessToken']
+# fb push emails
+retVal = fbEmails.facebookMain(fbCred, emailsList)
+#sendHashedEmails(emailsList, hashedEmails)
+print retVal

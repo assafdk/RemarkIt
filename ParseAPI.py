@@ -56,6 +56,9 @@ def getAdwordsCredentials(accountId):
     userCredentials = accounts.Query.get(objectId=accountId)
     return userCredentials.adwords
 
+def getFacebookCredentials(accountId):
+    userCredentials = accounts.Query.get(objectId=accountId)
+    return userCredentials.facebook
 
 # def getJobs():
 #     local_jobs = jobs.Query.all()
