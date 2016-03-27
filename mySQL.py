@@ -18,19 +18,25 @@ class Database:
 
     def getSalesforceCredentials(self, accountId):
         cursor = self.cnx.cursor()
-        query = ("SELECT id, account_name, sfdc_access_token, sfdc_refresh_token, sfdc_consumer_key, sfdc_instance_url FROM accounts WHERE id = {}").format(accountId)
+        query = ("SELECT consumer_key, consumer_secret, access_token, instance_url, refresh_token, sf_id, issued_at, scope, signature, token_type, enabled FROM sf_credentials WHERE account_id = {}").format(accountId)
         cursor.execute(query)
         result = cursor.fetchall()
         colNames = cursor.column_names
 
         for row in result:
             sfCred = {} # credentials dictionary
-            sfCred['id'] = row[0]
-            sfCred['account_name'] = row[1]
-            sfCred['sfdc_access_token'] = row[2]
-            sfCred['sfdc_refresh_token'] = row[3]
-            sfCred['sfdc_consumer_key'] = row[4]
-            sfCred['sfdc_instance_url'] = row[5]
+            sfCred['accountId'] = accountId
+            sfCred['consumer_key'] = row[0]
+            sfCred['consumer_secret'] = row[1]
+            sfCred['access_token'] = row[2]
+            sfCred['instance_url'] = row[3]
+            sfCred['refresh_token'] = row[4]
+            sfCred['sf_id'] = row[5]
+            sfCred['issued_at'] = row[6]
+            sfCred['scope'] = row[7]
+            sfCred['signature'] = row[8]
+            sfCred['token_type'] = row[9]
+            sfCred['enabled'] = row[10]
 
         # for account in cursor:
         #     sf_access_token = account.sfdc_access_token
@@ -45,40 +51,84 @@ class Database:
 
     def getAdwordsCredentials(self, accountId):
         cursor = self.cnx.cursor()
-        query = ("SELECT id, account_name, adwords_access_token, adwords_refresh_token FROM accounts WHERE id = {}").format(accountId)
+        query = ("SELECT enabled, access_token, refresh_token FROM adwords_credentials WHERE account_id = {}").format(accountId)
         cursor.execute(query)
         result = cursor.fetchall()
         colNames = cursor.column_names
 
         for row in result:
             adwordsCred = {} # credentials dictionary
-            adwordsCred['id'] = row[0]
-            adwordsCred['account_name'] = row[1]
-            adwordsCred['adwords_access_token'] = row[2]
-            adwordsCred['adwords_refresh_token'] = row[3]
+            adwordsCred['enabled'] = row[0]
+            adwordsCred['access_token'] = row[1]
+            adwordsCred['refresh_token'] = row[2]
 
         cursor.close()
         return adwordsCred
 
     def getFacebookCredentials(self, accountId):
         cursor = self.cnx.cursor()
-        query = ("SELECT id, account_name, fb_user_id, fb_account_id, fb_user_token, fb_expiresIn, fb_spent FROM accounts WHERE id = {}").format(accountId)
+        query = ("SELECT enabled, fb_user_id, fb_account_id, user_token, expiresIn, spent FROM fb_credentials WHERE account_id = {}").format(accountId)
         cursor.execute(query)
         result = cursor.fetchall()
         colNames = cursor.column_names
 
         for row in result:
             fbCred = {} # credentials dictionary
-            fbCred['id'] = row[0]
-            fbCred['account_name'] = row[1]
-            fbCred['fb_user_id'] = row[2]
-            fbCred['fb_account_id'] = row[3]
-            fbCred['fb_user_token'] = row[4]
-            fbCred['fb_expiresIn'] = row[5]
-            fbCred['fb_spent'] = row[6]
+            fbCred['enabled'] = row[0]
+            fbCred['fb_user_id'] = row[1]
+            fbCred['fb_account_id'] = row[2]
+            fbCred['user_token'] = row[3]
+            fbCred['expiresIn'] = row[4]
+            fbCred['spent'] = row[5]
 
         cursor.close()
         return fbCred
+
+    def pushSalseforceCredentials(self, sfCred):
+        cursor = self.cnx.cursor()
+        query = ("UPDATE sf_credentials SET access_token = '" + sfCred['access_token']
+                 + "', refresh_token = '" + sfCred['refresh_token']
+                 + "', instance_url = '" + sfCred['instance_url']
+                 + "', sf_id = '" + sfCred['sf_id']
+                 + "', issued_at = '" + sfCred['issued_at']
+                 + "', scope = '" + sfCred['scope']
+                 + "', signature = '" + sfCred['signature']
+                 + "', token_type = '" + sfCred['token_type']
+                 + "' WHERE account_id = {}").format(sfCred['accountId'])
+        cursor.execute(query)
+        self.cnx.commit()
+        cursor.close()
+        return
+
+    def pushFacebookCredentials(self, fbCred):
+        cursor = self.cnx.cursor()
+        query = ("UPDATE fb_credentials SET user_token = '" + fbCred['user_token']
+                 + "', expiresIn = '" + fbCred['expiresIn']
+                 + "', spent = '" + fbCred['spent']
+                 + "' WHERE account_id = {}").format(fbCred['accountId'])
+
+        cursor.execute(query)
+        self.cnx.commit()
+        cursor.close()
+        return
+
+    def pushAdwordsCredentials(self, awCred):
+        cursor = self.cnx.cursor()
+        query = "UPDATE adwords_credentials SET access_token = '" + awCred['access_token'] \
+                + "', refresh_token = '" + awCred['refresh_token'] \
+                + "' WHERE account_id = {}".format(awCred['accountId'])
+        cursor.execute(query)
+        self.cnx.commit()
+        cursor.close()
+        return
+
+    # def pushTwitterCredentials(self, accountId, twitterCred):
+    #     cursor = self.cnx.cursor()
+    #     query = ("UPDATE accounts SET fb_user_id=twitterCred['fb_user_id'], fb_account_id=twitterCred['fb_account_id'], fb_user_token=twitterCred['fb_user_token'], fb_expiresIn=twitterCred['fb_expiresIn'], fb_spent=twitterCred['fb_spent'] WHERE id = {}").format(accountId)
+    #     cursor.execute(query)
+    #     cursor.close()
+    #     return
+
 
     def query(self, queryStr):
         cursor = self.cnx.cursor()
@@ -87,81 +137,31 @@ class Database:
         cursor.close()
         self.cnx.close()
 
-
-
-# --- DEBUG ---
-#a = Database()
-#print a
-
+# debug
+# a = Database()
+# accountId = 1
 #
-# V def getAdwordsCredentials(accountId):
-#     userCredentials = accounts.Query.get(objectId=accountId)
-#     return userCredentials.adwords
+# sfCred = {}
+# sfCred['accountId'] = '1'
+# sfCred['access_token'] = '1'
+# sfCred['refresh_token'] = '1'
+# sfCred['instance_url'] = '1'
+# sfCred['sf_id'] = '1'
+# sfCred['issued_at'] = '1'
+# sfCred['scope'] = '1'
+# sfCred['signature'] = '1'
+# sfCred['token_type'] = '1'
 #
-# V def getFacebookCredentials(accountId):
-#     userCredentials = accounts.Query.get(objectId=accountId)
-#     return userCredentials.facebook
+# fbCred = {}
+# fbCred['accountId'] = '1'
+# fbCred['user_token'] = '1'
+# fbCred['expiresIn'] = '1'
+# fbCred['spent'] = '1'
 #
+# awCred = {}
+# awCred['accountId'] = '1'
+# awCred['access_token'] = '1'
+# awCred['refresh_token'] = '1'
 #
+# print a
 #
-#     def pushAdwordsCredentials(accountId, gglAccessToken, gglRefreshToken):
-# 	adwordsCredentials = {'active':True, 'access_token':gglAccessToken, 'refresh_token':gglRefreshToken}
-# 	# encode as a JSON-like string
-# 	adwordsCredentials = json.loads(json.dumps(adwordsCredentials))
-# 	adwordAccount  = accounts(objectId=accountId,adwords=adwordsCredentials)
-# 	adwordAccount.save()
-#
-# def pushSalesforceCredentials(accountId, jsonCredentials):
-# 	salesforceAccount  = accounts(objectId=accountId,salesforce=jsonCredentials)
-# 	salesforceAccount.save()
-#
-# # def getCredentials(service, accountId):
-# #     serviceClass = Object.factory(service)
-# #     userCredentials = accounts.Query.get(objectId=accountId)
-# #     retval = userCredentials[service]
-#
-#
-#
-# # def getJobs():
-# #     local_jobs = jobs.Query.all()
-# #     return local_jobs;
-# #
-# # def getAccountName(job):
-# #     accountId = job.account_id.objectId
-# #     accountName = accounts.Query.get(objectId=accountId)
-# #     return accountName.name
-# #
-# # def getTargetHeaders(job):
-# #     targetId = job.target_query_id.objectId
-# #     queryRow = queries.Query.get(objectId=targetId)
-# #     return queryRow.query_sql
-# #
-# # def getMktoQueryFields(job):
-# #     datasourceQueryId = job.datasource_query_id.objectId
-# #     queryobject = queries.Query.get(objectId=datasourceQueryId)
-# #     queryFields = queryobject.query_sql
-# #     return queryFields;
-# #
-# # def getMktoCredentials(accountId):
-# #     # var
-# #     mktoCredentials = mktoAPI.MktoCredentials()
-# #
-# #     local_credentials = credentials.Query.get(account_id=accountId)
-# #     mktoCredentials.munchkin = local_credentials.marketo_munchkin
-# #     mktoCredentials.clientId = local_credentials.marketo_clientid
-# #     mktoCredentials.clientSecret = local_credentials.marketo_client_secret
-# #     return mktoCredentials;
-# #
-# # """
-# # 1. get Jobs
-# # 2. from job -> datasource_query_id
-# # 3. from Qeuries table -> query(objectId = datasource_query_id)
-# # 4. from query -> query_sql (this is the filter)
-# #
-# # if queryURL is no longer valid
-# # Tokens:
-# # 1. my_account_id = job.account_id
-# # 2. my_credentials = Credentials.get(my_account_id)
-# # 3. my_credentials.marketo_clientid
-# #
-# # """
