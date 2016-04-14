@@ -1,18 +1,20 @@
 __author__ = 'Assaf Dekel'
 
 import requests, json
-import ParseAPI as parse
+import mySQL
 from simple_salesforce import Salesforce
 import gglAdwordsLogin as adWordsLogin
 import gglPushEmails as adWordsEmails
 import fbPushEmails as fbEmails
+
+LOG_FILE_NAME = "log.txt"
 
 """
 # OAuth 2.0 credential information. In a real application, you'd probably be
 # pulling these values from a credential storage.
 CLIENT_ID - of developer account
 CLIENT_SECRET - of developer account
-REFRESH_TOKEN - put access token!! of user account. from Parse.com
+REFRESH_TOKEN - put access token!! of user account. from db
 
 # AdWords API information.
 DEVELOPER_TOKEN - of developer's account
@@ -33,15 +35,16 @@ test_CLIENT_CUSTOMER_ID = '543-963-1369'
 production_CLIENT_CUSTOMER_ID = '393-270-7738'
 
 
-def getLeadsList(sf):
+def getLeadsList(sf, sfCred):
 
     try:
         response = sf.query_all("SELECT Email FROM Lead WHERE Email <> ''")
     except Exception, e:
         if e.status == 401:
             SALESFORCE_REFRESH_URL = "https://login.salesforce.com/services/oauth2/token"
-            SALESFORCE_CONSUMER_KEY = "3MVG98_Psg5cppyYH7Cios03svOf9hpZtPg.n0yTXRIKlnjy43.MNRgdLDbmBc3T5wK2IoYOaPLNlqBzNouzE"
-            SALESFORCE_CONSUMER_SECRET = "2132402812325087889"
+            SALESFORCE_CONSUMER_KEY = sfCred['consumer_key']   #"3MVG98_Psg5cppyYH7Cios03svOf9hpZtPg.n0yTXRIKlnjy43.MNRgdLDbmBc3T5wK2IoYOaPLNlqBzNouzE"
+            SALESFORCE_CONSUMER_SECRET = sfCred['consumer_secret']   #"2132402812325087889"
+            salesforce_refresh_token = sfCred['refresh_token']
 
             # HTTP request
             url = SALESFORCE_REFRESH_URL
@@ -62,19 +65,53 @@ def getLeadsList(sf):
             sfCred['signature'] = newSfCred['signature']
             sfCred['id'] = newSfCred['id']
             sfCred['issued_at'] = newSfCred['issued_at']
-            parse.pushSalesforceCredentials(user_account,sfCred)
+            db.pushSalseforceCredentials(sfCred)
 
             # try with new token
             sf = Salesforce(instance_url=sfCred['instance_url'], session_id=sfCred['access_token'])
             response = sf.query_all("SELECT Email FROM Lead WHERE Email <> ''")
     return response
 
-def pushAdwordsCredentialsIfChanged(adwords_access_token, new_adwords_access_token, adwords_refresh_token, new_adwords_refresh_token):
-    if new_adwords_access_token != adwords_access_token:
-        adwords_access_token = new_adwords_access_token
-    if new_adwords_refresh_token != adwords_refresh_token:
-        adwords_refresh_token = new_adwords_refresh_token
-    parse.pushAdwordsCredentials(user_account, new_adwords_access_token, new_adwords_refresh_token)
+def pushAdwordsCredentialsIfChanged(adwordsCred, new_adwords_access_token, new_adwords_refresh_token):
+    flag = False
+    if new_adwords_access_token != adwordsCred['access_token']:
+        flag = True
+        adwordsCred['access_token'] = new_adwords_access_token
+
+    if new_adwords_refresh_token != adwordsCred['refresh_token']:
+        flag = True
+        adwordsCred['refresh_token'] = new_adwords_refresh_token
+
+    if flag:
+        db.pushAdwordsCredentials(adwordsCred)
+
+def emailMsg(msg):
+    import smtplib
+
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server.ehlo()
+    server.starttls()
+    server.login("3targeting@gmail.com", "ShedShvil11")
+
+    server.sendmail("3targeting@gmail.com", "info@3targeting.com", msg)
+    server.quit()
+    return
+
+def report2logfile(logfileName, msg):
+    try:
+        file = open(logfileName,'a')   # Append to logfile
+        file.write(msg)
+        file.close()
+    except:
+        print("Something went wrong at report2logfile: {}, {}").format(logfileName, msg)
+
+def timestampGenerator():
+    import time
+    import datetime
+    timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%d-%m-%Y %H:%M:%S')
+    return timestamp
+
+
 
 """
 V Register to parse
@@ -96,18 +133,17 @@ V Send to google AdWords
 
 
 """
-user_account = "V5BwqwF0Es"
-
+accountId = 2
 #get instance_url & Access_token from Parse.com
 # session_id='' == Access Token
 """
-___________________ Parse ___________________
+___________________ MySQL database ___________________
 """
-# Register to parse
-parse.register2remoteDB()
+# Register to db
+db = mySQL.Database()
 
 # Get SF credentials
-sfCred = parse.getSalesforceCredentials(user_account)
+sfCred = db.getSalesforceCredentials(accountId)
 salesforce_instance_url = sfCred['instance_url']
 salesforce_access_token = sfCred['access_token']
 salesforce_refresh_token = sfCred['refresh_token']
@@ -124,7 +160,16 @@ sf = Salesforce(instance_url=salesforce_instance_url, session_id=salesforce_acce
 #sf.Contact.updated(end - datetime.timedelta(days=10), end)
 
 # Get leads list
-leadsList = getLeadsList(sf)
+leadsList = getLeadsList(sf, sfCred)
+
+# report to logfile
+timestamp = timestampGenerator()
+msg = "Section: Salesforce   Action: Pulled X leads    Time:{}\n".format(timestamp)
+report2logfile(LOG_FILE_NAME,msg)
+
+# report by email
+msg = "3Targeting just fetched leads list from another happy costumer"
+emailMsg(msg)
 
 """
 _________________ Prepare Emails List _________________
@@ -144,31 +189,31 @@ hashedEmails = adWordsEmails.HashEmails(emailsList)
 _________________ AdWords _________________
 """
 
-# # get adWords credentials
-# adwordsCred = parse.getAdwordsCredentials(user_account)
-# adwords_access_token = adwordsCred['access_token']
-# adwords_refresh_token = adwordsCred['refresh_token']
-#
-# # SHOULD BE SUPPLIED BY YANIR!!!
-# CLIENT_CUSTOMER_ID = test_CLIENT_CUSTOMER_ID
-#
-# # Login to AdWords
-# # if can't connect with REFRESH_TOKEN try to connect with ACCESS_TOKEN !! it worked!
-# [adwordsClient, new_adwords_access_token, new_adwords_refresh_token] = adWordsLogin.login(CLIENT_ID, CLIENT_SECRET, adwords_refresh_token, DEVELOPER_TOKEN, USER_AGENT, CLIENT_CUSTOMER_ID)
-#
-# # Upload emails list to adwords
-# adWordsEmails.sendHashedEmails(adwordsClient, hashedEmails)
-#
-# # Push new credentials to Parse
-# pushAdwordsCredentialsIfChanged(adwords_access_token, new_adwords_access_token, adwords_refresh_token, new_adwords_refresh_token)
-#
-# print "Success"
+# get adWords credentials
+adwordsCred = db.getAdwordsCredentials(accountId)
+adwords_access_token = adwordsCred['access_token']
+adwords_refresh_token = adwordsCred['refresh_token']
+
+# SHOULD BE SUPPLIED BY YANIR!!!
+CLIENT_CUSTOMER_ID = test_CLIENT_CUSTOMER_ID
+
+# Login to AdWords
+# if can't connect with REFRESH_TOKEN try to connect with ACCESS_TOKEN !! it worked!
+[adwordsClient, new_adwords_access_token, new_adwords_refresh_token] = adWordsLogin.login(CLIENT_ID, CLIENT_SECRET, adwords_refresh_token, DEVELOPER_TOKEN, USER_AGENT, CLIENT_CUSTOMER_ID)
+
+# Upload emails list to adwords
+adWordsEmails.sendHashedEmails(adwordsClient, hashedEmails)
+
+# Push new credentials to Parse
+pushAdwordsCredentialsIfChanged(adwordsCred, new_adwords_access_token, new_adwords_refresh_token)
+
+print "Success"
 
 """
 _________________ Facebook _________________
 """
 # get fb credentials
-fbCred = parse.getFacebookCredentials(user_account)
+fbCred = db.getFacebookCredentials(accountId)
 fb_access_token = fbCred['user_token']['accessToken']
 # fb push emails
 retVal = fbEmails.facebookMain(fbCred, emailsList)
