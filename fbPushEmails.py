@@ -14,8 +14,8 @@ my_app_secret = '5b4d044338217ad32a29852f194b09ad'
 my_access_token = 'CAAHsB1lutXABAFOM3J65M3rC1Rc4pWqnxaIZAbaRpIORGZAhLH3uwArocOGiVFov8qSi6oP1vsksZBRZCIFdLn0JXKTHEKQh7k9DZBh6tu5TVKCSuYqjxpmHxfWcvIZC5TcjWZBM1RRfgFCK7AxLtuEX7qFULqtzcpJk11GGb9ujjNAzF7nQz7qknSucUKZCIPGOLBD2D1m48E0X6qTQafjd' # User access token
 
 def facebookMain(fbCred, emails_list):
-    act_id = fbCred['user_id']
-    user_access_token = fbCred['user_token']['accessToken']
+    act_id = fbCred['fb_user_id']
+    user_access_token = fbCred['user_token']
     # user_access_token = 'CAAHsB1lutXABADNT3ppqATXZBdUwlfgEViIVlaHl5A14CpZBzoCvWi3qycaVdZAtLPnVFH5QY7EKY1UWYuYzvJptzrFaNcE8OXIOOYVo1hX33h8Ml2M9n5yyd7UJ3PHwOtixi6VgJNJY7sZAYY6b4CwqwCwZAjXir8aKAzmu6GMWZAutDKdSQ482SnawqJRIA7XVgR3K7HGIx1ZA4rOEFra'
     # Login
     FacebookAdsApi.init(my_app_id, my_app_secret, user_access_token)

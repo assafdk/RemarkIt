@@ -31,9 +31,9 @@ production_CLIENT_CUSTOMER_ID = '393-270-7738'
 
 # OAuth 2.0 credential information. In a real application, you'd probably be
 # pulling these values from a credential storage.
-CLIENT_ID = '280160838890-kjhls6qlss26fj1f2kr7v61fh5esmmuk.apps.googleusercontent.com'
-CLIENT_SECRET = 'ZQLzF8TadPS3Zpk52rACGsKG'
-REFRESH_TOKEN = '1/-cU8qsogyXoHAHGQ4GnpGOUBvNR375Oz6dJY7xHSfAQ'
+CLIENT_ID = '1021839565394-4pknihosad52tvejcaovp9mpnqtpm3qt.apps.googleusercontent.com'
+CLIENT_SECRET = 'cCaORb7CqIWMeqZtsK6JTJsu'
+REFRESH_TOKEN = '1/MHqTZNiJZ6jdM-P8oHA_f9yztwYzBMl-6nIrJmJJRPgMEudVrK5jSpoR30zcRFq6'
 
 # AdWords API information.
 DEVELOPER_TOKEN = 'YAVzDP8OR2vtzQ_Bp_ztFA'

@@ -23,8 +23,8 @@ CLIENT_CUSTOMER_ID - the number of the user's googleAds account
 """
 # Developer's keys
 # OAuth 2.0 credential information
-CLIENT_ID = '280160838890-kjhls6qlss26fj1f2kr7v61fh5esmmuk.apps.googleusercontent.com'
-CLIENT_SECRET = 'ZQLzF8TadPS3Zpk52rACGsKG'
+CLIENT_ID = '1021839565394-4pknihosad52tvejcaovp9mpnqtpm3qt.apps.googleusercontent.com'
+CLIENT_SECRET = 'cCaORb7CqIWMeqZtsK6JTJsu'
 
 # AdWords API information.
 DEVELOPER_TOKEN = 'YAVzDP8OR2vtzQ_Bp_ztFA'
@@ -34,6 +34,102 @@ USER_AGENT = '3Targeting'
 test_CLIENT_CUSTOMER_ID = '543-963-1369'
 production_CLIENT_CUSTOMER_ID = '393-270-7738'
 
+def pushEmails2AdWords(hashedEmails,adwordsCred, db):
+    adwords_access_token = adwordsCred['access_token']
+    adwords_refresh_token = adwordsCred['refresh_token']
+
+    # SHOULD BE SUPPLIED BY YANIR!!!
+    CLIENT_CUSTOMER_ID = test_CLIENT_CUSTOMER_ID
+
+    # Login to AdWords
+    # if can't connect with REFRESH_TOKEN try to connect with ACCESS_TOKEN !! it worked!
+    [adwordsClient, new_adwords_access_token, new_adwords_refresh_token] = adWordsLogin.login(CLIENT_ID, CLIENT_SECRET, adwords_refresh_token, DEVELOPER_TOKEN, USER_AGENT, CLIENT_CUSTOMER_ID)
+
+    # Push new credentials to MySQL
+    pushAdwordsCredentialsIfChanged(adwordsCred, new_adwords_access_token, new_adwords_refresh_token)
+
+    # Upload emails list to adwords
+    if adwordsCred['user_list_id'] != None:
+        try:
+            adWordsEmails.sendHashedEmails2ExistingList(adwordsClient,adwordsCred['user_list_id'], hashedEmails)
+            return
+        except Exception as e:
+            if e.fault.detail.ApiExceptionFault.errors.reason == "INVALID_ID":
+                print "No list with id: " + adwordsCred['user_list_id'] + "\nCreating new list..."
+
+        user_list_id = adWordsEmails.sendHashedEmails(adwordsClient, hashedEmails)
+        adwordsCred['user_list_id'] = user_list_id
+        db.pushAdwordsCredentials(adwordsCred)
+        print "New list created"
+    return
+
+def pushEmails2Facebook(hashedEmails,fbCred):
+
+    #fb_access_token = fbCred['user_token']['accessToken']
+    # fb push emails
+    retVal = fbEmails.facebookMain(fbCred, emailsList)
+    #sendHashedEmails(emailsList, hashedEmails)
+    print retVal
+
+# NOT OPERATIONAL!!
+def pushEmails2Twitter(hashedEmails,twCred):
+
+    from twitter_ads.client import Client
+    from twitter_ads.audience import TailoredAudience
+    from twitter_ads.enum import TA_LIST_TYPES, TA_OPERATIONS
+
+    CONSUMER_KEY = 'your consumer key'
+    CONSUMER_SECRET = 'your consumer secret'
+    ACCESS_TOKEN = 'access token'
+    ACCESS_TOKEN_SECRET = 'access token secret'
+    ACCOUNT_ID = 'account id'
+
+    # initialize the client
+    client = Client(CONSUMER_KEY, CONSUMER_SECRET, ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
+
+    # load the advertiser account instance
+    account = client.accounts(ACCOUNT_ID)
+
+    # create a new tailored audience
+    audience = TailoredAudience.create(account, '/path/to/file', 'my list', TA_LIST_TYPES.EMAIL)
+
+    # check the processing status
+    audience.status()
+
+    # update the tailored audience
+    audience.update('/path/to/file', TA_LIST_TYPES.TWITTER_ID, TA_OPERATIONS.REMOVE)
+    audience.update('/path/to/file', TA_LIST_TYPES.PHONE_NUMBER, TA_OPERATIONS.ADD)
+
+    # delete the tailored audience
+    audience.delete()
+
+    # add users to the account's global opt-out list
+    TailoredAudience.opt_out(account, '/path/to/file', TA_OPERATIONS.HANDLE)
+
+def extractEmailsFromLeads(leadsList):
+# Convert leadsList (python 'OrderedDict' datatype) to emailsList (python 'list' datatype)
+    emailsList =[]
+    #emailsList = leadsList['records'][i]['Email']
+    for lead in leadsList['records']:
+        emailsList.append(lead['Email'])
+    return emailsList
+
+def getLeadsListFromSalesforce(sfCred):
+    salesforce_instance_url = sfCred['instance_url']
+    salesforce_access_token = sfCred['access_token']
+    salesforce_refresh_token = sfCred['refresh_token']
+
+    # Login to SF
+    sf = Salesforce(instance_url=salesforce_instance_url, session_id=salesforce_access_token)
+
+    #import pytz
+    #import datetime
+    #end = datetime.datetime.now(pytz.UTC) # we need to use UTC as salesforce API requires this
+    #sf.Contact.updated(end - datetime.timedelta(days=10), end)
+
+    # Get leads list
+    leadsList = getLeadsList(sf, sfCred)
+    return leadsList
 
 def getLeadsList(sf, sfCred):
 
@@ -50,7 +146,7 @@ def getLeadsList(sf, sfCred):
             url = SALESFORCE_REFRESH_URL
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + salesforce_access_token,
+                'Authorization': 'Bearer ' + sfCred['access_token'],
                 'X-PrettyPrint': '1'
             }
             params = {'grant_type': 'refresh_token',
@@ -133,7 +229,7 @@ V Send to google AdWords
 
 
 """
-accountId = 2
+accountId = 3
 #get instance_url & Access_token from Parse.com
 # session_id='' == Access Token
 """
@@ -142,26 +238,18 @@ ___________________ MySQL database ___________________
 # Register to db
 db = mySQL.Database()
 
-# Get SF credentials
-sfCred = db.getSalesforceCredentials(accountId)
-salesforce_instance_url = sfCred['instance_url']
-salesforce_access_token = sfCred['access_token']
-salesforce_refresh_token = sfCred['refresh_token']
-
 """
 ______________________ Salesforce ______________________
 """
-# Login to SF
-sf = Salesforce(instance_url=salesforce_instance_url, session_id=salesforce_access_token)
 
-#import pytz
-#import datetime
-#end = datetime.datetime.now(pytz.UTC) # we need to use UTC as salesforce API requires this
-#sf.Contact.updated(end - datetime.timedelta(days=10), end)
+# Get SF credentials
+sfCred = db.getSalesforceCredentials(accountId)
+leadsList = getLeadsListFromSalesforce(sfCred)
 
-# Get leads list
-leadsList = getLeadsList(sf, sfCred)
 
+"""
+______________________ Report ______________________
+"""
 # report to logfile
 timestamp = timestampGenerator()
 msg = "Section: Salesforce   Action: Pulled X leads    Time:{}\n".format(timestamp)
@@ -169,18 +257,15 @@ report2logfile(LOG_FILE_NAME,msg)
 
 # report by email
 msg = "3Targeting just fetched leads list from another happy costumer"
-emailMsg(msg)
+#emailMsg(msg)
+
 
 """
 _________________ Prepare Emails List _________________
 lowercase & hash
 """
 
-# Convert to emailsList
-emailsList =[]
-#emailsList = leadsList['records'][i]['Email']
-for lead in leadsList['records']:
-    emailsList.append(lead['Email'])
+emailsList = extractEmailsFromLeads(leadsList)
 
 # Normalize & Hash emails
 hashedEmails = adWordsEmails.HashEmails(emailsList)
@@ -191,67 +276,19 @@ _________________ AdWords _________________
 
 # get adWords credentials
 adwordsCred = db.getAdwordsCredentials(accountId)
-adwords_access_token = adwordsCred['access_token']
-adwords_refresh_token = adwordsCred['refresh_token']
+pushEmails2AdWords(hashedEmails, adwordsCred, db)
 
-# SHOULD BE SUPPLIED BY YANIR!!!
-CLIENT_CUSTOMER_ID = test_CLIENT_CUSTOMER_ID
-
-# Login to AdWords
-# if can't connect with REFRESH_TOKEN try to connect with ACCESS_TOKEN !! it worked!
-[adwordsClient, new_adwords_access_token, new_adwords_refresh_token] = adWordsLogin.login(CLIENT_ID, CLIENT_SECRET, adwords_refresh_token, DEVELOPER_TOKEN, USER_AGENT, CLIENT_CUSTOMER_ID)
-
-# Upload emails list to adwords
-adWordsEmails.sendHashedEmails(adwordsClient, hashedEmails)
-
-# Push new credentials to Parse
-pushAdwordsCredentialsIfChanged(adwordsCred, new_adwords_access_token, new_adwords_refresh_token)
-
-print "Success"
 
 """
 _________________ Facebook _________________
 """
 # get fb credentials
 fbCred = db.getFacebookCredentials(accountId)
-fb_access_token = fbCred['user_token']['accessToken']
-# fb push emails
-retVal = fbEmails.facebookMain(fbCred, emailsList)
-#sendHashedEmails(emailsList, hashedEmails)
-print retVal
+pushEmails2Facebook(hashedEmails,fbCred)
 
 
 """
-_________________ Twitter _________________
+#_________________ Twitter _________________
 """
-from twitter_ads.client import Client
-from twitter_ads.audience import TailoredAudience
-from twitter_ads.enum import TA_LIST_TYPES, TA_OPERATIONS
-
-CONSUMER_KEY = 'your consumer key'
-CONSUMER_SECRET = 'your consumer secret'
-ACCESS_TOKEN = 'access token'
-ACCESS_TOKEN_SECRET = 'access token secret'
-ACCOUNT_ID = 'account id'
-
-# initialize the client
-client = Client(CONSUMER_KEY, CONSUMER_SECRET, ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
-
-# load the advertiser account instance
-account = client.accounts(ACCOUNT_ID)
-
-# create a new tailored audience
-audience = TailoredAudience.create(account, '/path/to/file', 'my list', TA_LIST_TYPES.EMAIL)
-
-# check the processing status
-audience.status()
-
-# update the tailored audience
-audience.update('/path/to/file', TA_LIST_TYPES.TWITTER_ID, TA_OPERATIONS.REMOVE)
-audience.update('/path/to/file', TA_LIST_TYPES.PHONE_NUMBER, TA_OPERATIONS.ADD)
-
-# delete the tailored audience
-audience.delete()
-
-# add users to the account's global opt-out list
-TailoredAudience.opt_out(account, '/path/to/file', TA_OPERATIONS.HANDLE)
+twCred = db.getTwitterCredentials(accountId)
+pushEmails2Twitter(hashedEmails,twCred)

@@ -58,15 +58,17 @@ class Database:
 
     def getAdwordsCredentials(self, accountId):
         cursor = self.db.cursor()
-        query = ("SELECT enabled, access_token, refresh_token FROM adwords_credentials WHERE account_id = {}").format(accountId)
+        query = ("SELECT enabled, access_token, refresh_token, user_list_id FROM adwords_credentials WHERE account_id = {}").format(accountId)
         cursor.execute(query)
         result = cursor.fetchall()
 
         for row in result:
             adwordsCred = {} # credentials dictionary
+            adwordsCred['accountId'] = accountId
             adwordsCred['enabled'] = row[0]
             adwordsCred['access_token'] = row[1]
             adwordsCred['refresh_token'] = row[2]
+            adwordsCred['user_list_id'] = row[3]
 
         cursor.close()
         return adwordsCred
@@ -79,6 +81,7 @@ class Database:
 
         for row in result:
             fbCred = {} # credentials dictionary
+            fbCred['accountId'] = accountId
             fbCred['enabled'] = row[0]
             fbCred['fb_user_id'] = row[1]
             fbCred['fb_account_id'] = row[2]
@@ -119,9 +122,13 @@ class Database:
 
     def pushAdwordsCredentials(self, awCred):
         cursor = self.db.cursor()
+        # query = "UPDATE adwords_credentials SET access_token = '" + awCred['access_token'] \
+        #         + "', refresh_token = '" + awCred['refresh_token'] \
+        #         + "', user_list_id = {}'" \
+        #         + "' WHERE account_id = {}".format(awCred['user_list_id'], awCred['accountId'])
         query = "UPDATE adwords_credentials SET access_token = '" + awCred['access_token'] \
                 + "', refresh_token = '" + awCred['refresh_token'] \
-                + "' WHERE account_id = {}".format(awCred['accountId'])
+                + "', user_list_id = {} WHERE account_id = {}".format(awCred['user_list_id'], awCred['accountId'])
         cursor.execute(query)
         self.db.commit()
         cursor.close()
