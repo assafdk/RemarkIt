@@ -24,6 +24,62 @@ class Database:
     # def closeConnection(self):
     #     self.db.close()
 
+    def getJobsList(self):
+        cursor = self.db.cursor()
+        query = ("SELECT id, account_id, job_name, job_description, audience, cycle, last_run, in_sf, out_fb, out_twitter, out_aw, out_ga, time_created, time_updated, created_by FROM jobs")
+        cursor.execute(query)
+        jobsList = cursor.fetchall()
+        cursor.close()
+        return jobsList
+
+
+    def parseJob(self, row):
+        job = {} # job dictionary
+        job['id'] = row[0]
+        job['account_id'] = row[1]
+        job['job_name'] = row[2]
+        job['job_description'] = row[3]
+        job['audience'] = row[4]
+        job['cycle'] = row[5]
+        job['last_run'] = row[6]
+        job['in_sf'] = row[7]
+        job['out_fb'] = row[8]
+        job['out_twitter'] = row[9]
+        job['out_aw'] = row[10]
+        job['out_ga'] = row[11]
+        job['time_created'] = row[12]
+        job['time_updated'] = row[13]
+        job['created_by'] = row[14]
+        return job
+
+    def getAudience(self, job):
+        cursor = self.db.cursor()
+        query = ("SELECT id, account_id, audience_name, audience_description, audience_type, last_run, sql_select, sql_where, aw_user_list_id, fb_user_list_id, tw_user_list_id, ga_user_list_id, time_created, time_updated, created_by FROM audiences WHERE id = {}").format(job['audience'])
+        cursor.execute(query)
+        result = cursor.fetchall()
+
+        row = result[0]
+        audience = {} # job dictionary
+        audience['id'] = row[0]
+        audience['account_id'] = row[1]
+        audience['audience_name'] = row[2]
+        audience['audience_description'] = row[3]
+        audience['audience_type'] = row[4]
+        audience['last_run'] = row[5]
+        audience['sql_fields'] = row[6]
+        audience['sql_filter_phrase'] = row[7]
+        audience['sql_query'] = ("SELECT " + row[6] + " from Lead WHERE " + row[7] )
+        audience['aw_user_list_id'] = row[8]
+        audience['fb_user_list_id'] = row[9]
+        audience['tw_user_list_id'] = row[10]
+        audience['ga_user_list_id'] = row[11]
+        audience['time_created'] = row[12]
+        audience['time_updated'] = row[13]
+        audience['created_by'] = row[14]
+
+        cursor.close()
+        return audience
+
     def getSalesforceCredentials(self, accountId):
         cursor = self.db.cursor()
         query = ("SELECT consumer_key, consumer_secret, access_token, instance_url, refresh_token, sf_id, issued_at, scope, signature, token_type, enabled FROM sf_credentials WHERE account_id = {}").format(accountId)
@@ -54,7 +110,6 @@ class Database:
 
         cursor.close()
         return sfCred
-
 
     def getAdwordsCredentials(self, accountId):
         cursor = self.db.cursor()

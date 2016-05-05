@@ -1,6 +1,7 @@
 __author__ = 'Assaf Dekel'
 
 import requests, json
+import re
 import mySQL
 from simple_salesforce import Salesforce
 import gglAdwordsLogin as adWordsLogin
@@ -34,7 +35,8 @@ USER_AGENT = '3Targeting'
 test_CLIENT_CUSTOMER_ID = '543-963-1369'
 production_CLIENT_CUSTOMER_ID = '393-270-7738'
 
-def pushEmails2AdWords(hashedEmails,adwordsCred, db):
+def pushEmails2AdWords(hashedEmails, account_id, db):
+    adwordsCred = db.getAdwordsCredentials(account_id)
     adwords_access_token = adwordsCred['access_token']
     adwords_refresh_token = adwordsCred['refresh_token']
 
@@ -114,7 +116,8 @@ def extractEmailsFromLeads(leadsList):
         emailsList.append(lead['Email'])
     return emailsList
 
-def getLeadsListFromSalesforce(sfCred):
+def getLeadsListFromSalesforce(db, audience):
+    sfCred = db.getSalesforceCredentials(audience['account_id'])
     salesforce_instance_url = sfCred['instance_url']
     salesforce_access_token = sfCred['access_token']
     salesforce_refresh_token = sfCred['refresh_token']
@@ -128,13 +131,14 @@ def getLeadsListFromSalesforce(sfCred):
     #sf.Contact.updated(end - datetime.timedelta(days=10), end)
 
     # Get leads list
-    leadsList = getLeadsList(sf, sfCred)
+    leadsList = getLeadsList(sf, sfCred, audience)
     return leadsList
 
-def getLeadsList(sf, sfCred):
+def getLeadsList(sf, sfCred, audience):
 
     try:
-        response = sf.query_all("SELECT Email FROM Lead WHERE Email <> ''")
+        # response = sf.query_all("SELECT Email FROM Lead WHERE Email <> ''")
+        response = sf.query_all(audience['sql_query']) # Use query stored in db
     except Exception, e:
         if e.status == 401:
             SALESFORCE_REFRESH_URL = "https://login.salesforce.com/services/oauth2/token"
@@ -165,7 +169,8 @@ def getLeadsList(sf, sfCred):
 
             # try with new token
             sf = Salesforce(instance_url=sfCred['instance_url'], session_id=sfCred['access_token'])
-            response = sf.query_all("SELECT Email FROM Lead WHERE Email <> ''")
+            # response = sf.query_all("SELECT Email FROM Lead WHERE Email <> ''")
+            response = sf.query_all(audience['sql_query']) # Use query stored in db
     return response
 
 def pushAdwordsCredentialsIfChanged(adwordsCred, new_adwords_access_token, new_adwords_refresh_token):
@@ -207,44 +212,87 @@ def timestampGenerator():
     timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%d-%m-%Y %H:%M:%S')
     return timestamp
 
+def isTimeToRun(job):
+    import datetime
+    cycle = job['cycle']
+    last_run = job['last_run']
+    next_run = last_run + datetime.timedelta(days=cycle)
+    today = datetime.date.today()
+
+    return today > next_run
 
 
-"""
-V Register to parse
-  Get all active users from Parse
-for each user:
-V Get SF credentials
-V Login to SF
-V Get leads list
-V Convert to emailsList
-V Convert to google AdWords format
-
---- AdWords ---
-V Login to AdWords
-V Send to google AdWords
---- Facebook ---
- Login to Facebook
- Get custom audiences
- Send to Facebook (to specific custom audience)
-
-
-"""
-accountId = 3
-#get instance_url & Access_token from Parse.com
-# session_id='' == Access Token
-"""
-___________________ MySQL database ___________________
-"""
+#___________________ MySQL database ___________________
 # Register to db
 db = mySQL.Database()
+jobsList = db.getJobsList()
+
+for row in jobsList:
+    job = db.parseJob(row)
+    if isTimeToRun(job):
+        audience = db.getAudience(job)
+        accountId = audience['account_id']
+        if job['in_sf']:
+            # _________________________ Salesforce ________________________
+            leadsList = getLeadsListFromSalesforce(db, audience)
+            # if audience['audience_type'] == 'EMAIL':  # Or another check to make sure there's an email field
+            if re.search('EMAIL', audience['sql_fields'], re.IGNORECASE):
+                emailsList = extractEmailsFromLeads(leadsList)
+                # Normalize & Hash emails
+                hashedEmails = adWordsEmails.HashEmails(emailsList)
+
+        if job['out_aw']:
+            # __________________________ AdWords __________________________
+            # get adWords credentials & push emails to AdWords
+            pushEmails2AdWords(hashedEmails, accountId, db)
+
+        if job['out_fb']:
+            # __________________________ Facebook _________________________
+            if audience['audience_type'] == 'EMAIL':
+                continue
+            # pushEmails2fb()
+            if audience['audience_type'] == 'PHONE':
+                continue
+            # pushPhones2fb()
+
+        if job['out_tw']:
+            # __________________________ Twitter __________________________
+            if audience['audience_type'] == 'EMAIL':
+                continue
+            # pushEmails2Twitter()
+            if audience['audience_type'] == 'PHONE':
+                continue
+            # pushPhones2Twitter()
+
+        if job['out_ga']:
+            # ______________________ Google Analyics ______________________
+            if audience['audience_type'] == 'EMAIL':
+                continue
+            # pushEmails2GA()
+            if audience['audience_type'] == 'PHONE':
+                continue
+            # pushPhones2GA()
+
+        msg = "pulled X leads from ... pushed to AdWords, FB and Twitter on dd:mm:yy HH:MM"
+        report2logfile(LOG_FILE_NAME, msg)
+
+        # db.updateAudienceLastRun(now)
+        # db.updateJobLastRun(now)
+
+
+# ______________________ EOF ______________________
+
+
+
+
+accountId = 4
 
 """
 ______________________ Salesforce ______________________
 """
 
-# Get SF credentials
-sfCred = db.getSalesforceCredentials(accountId)
-leadsList = getLeadsListFromSalesforce(sfCred)
+# Get SF leads
+leadsList = getLeadsListFromSalesforce(db, accountId)
 
 
 """
@@ -275,8 +323,7 @@ _________________ AdWords _________________
 """
 
 # get adWords credentials
-adwordsCred = db.getAdwordsCredentials(accountId)
-pushEmails2AdWords(hashedEmails, adwordsCred, db)
+pushEmails2AdWords(hashedEmails, db)
 
 
 """
