@@ -248,6 +248,10 @@ for row in jobsList:
 
         if job['out_fb']:
             # __________________________ Facebook _________________________
+            # get fb credentials
+            fbCred = db.getFacebookCredentials(accountId)
+            pushEmails2Facebook(hashedEmails,fbCred)
+
             if audience['audience_type'] == 'EMAIL':
                 continue
             # pushEmails2fb()
